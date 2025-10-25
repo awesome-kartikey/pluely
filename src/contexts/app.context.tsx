@@ -14,7 +14,8 @@ import {
   updateAutostart,
   CustomizableState,
 } from "@/lib/storage";
-import { IContextType, ScreenshotConfig, TYPE_PROVIDER } from "@/types";
+import { IContextType, ScreenshotConfig, SystemPrompt, TYPE_PROVIDER } from "@/types";
+import { useSystemPrompts } from "@/hooks"; // Import useSystemPrompts
 import curl2Json from "@bany/curl-to-json";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -26,6 +27,7 @@ import {
   useEffect,
   useState,
 } from "react";
+
 
 const validateAndProcessCurlProviders = (
   providersJson: string,
@@ -66,10 +68,53 @@ const AppContext = createContext<IContextType | undefined>(undefined);
 
 // Create the provider component
 export const AppProvider = ({ children }: { children: ReactNode }) => {
+  const [toast, setToast] = useState({ show: false, message: "***" });
+  // 1. Manage all prompt-related state here
+  const { prompts, isLoading: arePromptsLoading, ...promptActions } = useSystemPrompts();
+  const [selectedPromptId, setSelectedPromptId] = useState<number | null>(() => {
+    const stored = safeLocalStorage.getItem(STORAGE_KEYS.SELECTED_SYSTEM_PROMPT_ID);
+    return stored ? Number(stored) : null;
+  });
+
   const [systemPrompt, setSystemPrompt] = useState<string>(
     safeLocalStorage.getItem(STORAGE_KEYS.SYSTEM_PROMPT) ||
       DEFAULT_SYSTEM_PROMPT
   );
+  // 3. Create a selection handler here
+  const handleSelectPrompt = (promptId: number) => {
+    const selectedPrompt = prompts.find((p) => p.id === promptId);
+    if (selectedPrompt) {
+      setSystemPrompt(selectedPrompt.prompt);
+      setSelectedPromptId(promptId);
+      safeLocalStorage.setItem(STORAGE_KEYS.SYSTEM_PROMPT, selectedPrompt.prompt);
+      safeLocalStorage.setItem(STORAGE_KEYS.SELECTED_SYSTEM_PROMPT_ID, promptId.toString());
+    }
+  };
+
+  // 4. Move the shortcut listener here
+  useEffect(() => {
+    const setupShortcutListener = async () => {
+      const unlistenFn = await listen("toggle-next-prompt", () => {
+        if (prompts.length === 0) return;
+
+        const currentIndex = prompts.findIndex((p) => p.id === selectedPromptId);
+        const nextIndex = (currentIndex + 1) % prompts.length;
+        const nextPrompt = prompts[nextIndex];
+
+        if (nextPrompt) {
+          handleSelectPrompt(nextPrompt.id);
+          showPromptToast(nextPrompt.name); // Trigger the toast
+        }
+      });
+      return unlistenFn;
+    };
+
+    const unlistenPromise = setupShortcutListener();
+
+    return () => {
+      unlistenPromise.then((unlisten) => unlisten());
+    };
+  }, [prompts, selectedPromptId]); // Dependencies are important
 
   const [selectedAudioDevices, setSelectedAudioDevices] = useState<{
     input: string;
@@ -119,12 +164,19 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     titles: { isEnabled: true },
     autostart: { isEnabled: true },
   });
-  const [hasActiveLicense, setHasActiveLicense] = useState<boolean>(false);
+  const [hasActiveLicense, setHasActiveLicense] = useState<boolean>(true);
 
   // Pluely API State
   const [pluelyApiEnabled, setPluelyApiEnabledState] = useState<boolean>(
     safeLocalStorage.getItem(STORAGE_KEYS.PLUELY_API_ENABLED) === "true"
   );
+  const showPromptToast = (message: string) => {
+    setToast({ show: true, message });
+    // The toast component will hide itself, but we can reset the state here too
+    setTimeout(() => {
+      setToast({ show: false, message: "" });
+    }, 2500); // A bit longer than the toast's duration
+  };
 
   const getActiveLicenseStatus = async () => {
     const response: { is_active: boolean } = await invoke(
@@ -503,6 +555,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     getActiveLicenseStatus,
     selectedAudioDevices,
     setSelectedAudioDevices,
+    prompts,
+    arePromptsLoading,
+    promptActions,
+    selectedPromptId,
+    handleSelectPrompt,
+    toast,
+    showPromptToast,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

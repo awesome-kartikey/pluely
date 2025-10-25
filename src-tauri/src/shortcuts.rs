@@ -64,6 +64,7 @@ pub fn handle_shortcut_action<R: Runtime>(app: &AppHandle<R>, action_id: &str) {
         "audio_recording" => handle_audio_shortcut(app),
         "screenshot" => handle_screenshot_shortcut(app),
         "system_audio" => handle_system_audio_shortcut(app),
+        "toggle_system_prompt" => handle_toggle_prompt_shortcut(app),
         custom_action => {
             // Emit custom action event for frontend to handle
             if let Some(window) = app.get_webview_window("main") {
@@ -178,6 +179,16 @@ fn handle_system_audio_shortcut<R: Runtime>(app: &AppHandle<R>) {
         // Emit event to toggle system audio capture - frontend will determine current state
         if let Err(e) = window.emit("toggle-system-audio", json!({})) {
             eprintln!("Failed to emit system audio event: {}", e);
+        }
+    }
+}
+
+/// Handle system prompt toggle shortcut
+fn handle_toggle_prompt_shortcut<R: Runtime>(app: &AppHandle<R>) {
+    if let Some(window) = app.get_webview_window("main") {
+        // Emit an event to the frontend to cycle to the next prompt
+        if let Err(e) = window.emit("toggle-next-prompt", json!({})) {
+            eprintln!("Failed to emit toggle-next-prompt event: {}", e);
         }
     }
 }

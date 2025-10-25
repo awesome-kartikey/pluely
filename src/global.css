@@ -119,9 +119,9 @@
   }
 }
 
-* {
+/* * {
   cursor: none !important;
-}
+} */
 
 /* Apply global transparency */
 [data-slot="card"] {

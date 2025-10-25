@@ -66,7 +66,7 @@ const App = () => {
         <Updater />
         <DragButton />
       </Card>
-      <CustomCursor />
+      {/* <CustomCursor /> */}
     </div>
   );
 };

@@ -1,10 +1,21 @@
 import { Dispatch, SetStateAction } from "react";
-import { ScreenshotConfig, TYPE_PROVIDER } from "@/types";
+import { ScreenshotConfig, SystemPrompt, TYPE_PROVIDER } from "@/types";
 import { CustomizableState } from "@/lib/storage";
+import { UseSystemPromptsReturn } from "@/hooks";
 
 export type IContextType = {
+  toast: {
+    show: boolean;
+    message: string;
+  };
+  showPromptToast: (message: string) => void;
   systemPrompt: string;
   setSystemPrompt: Dispatch<SetStateAction<string>>;
+  prompts: SystemPrompt[];
+  arePromptsLoading: boolean;
+  promptActions: Omit<UseSystemPromptsReturn, "prompts" | "isLoading">;
+  selectedPromptId: number | null;
+  handleSelectPrompt: (promptId: number) => void;
   allAiProviders: TYPE_PROVIDER[];
   customAiProviders: TYPE_PROVIDER[];
   selectedAIProvider: {

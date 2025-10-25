@@ -41,4 +41,14 @@ export const DEFAULT_SHORTCUT_ACTIONS: ShortcutAction[] = [
       linux: "ctrl+shift+s",
     },
   },
+  {
+    id: "toggle_system_prompt",
+    name: "Toggle System Prompt",
+    description: "Cycle through your saved system prompts",
+    defaultKey: {
+      macos: "cmd+shift+y",
+      windows: "ctrl+shift+y",
+      linux: "ctrl+shift+y",
+    },
+  },
 ];

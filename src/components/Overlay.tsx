@@ -152,7 +152,7 @@ const Overlay: React.FC = () => {
     <>
       <div
         className="fixed inset-0 w-screen h-screen bg-black/0.5 bg-opacity-10 overflow-hidden"
-        style={{ cursor: "none" }}
+        // style={{ cursor: "none" }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -203,7 +203,7 @@ const Overlay: React.FC = () => {
         />
 
         {/* Custom Cursor */}
-        <div
+        {/* <div
           className="fixed pointer-events-none z-[9999] transition-opacity duration-100"
           style={{
             left: cursorPosition.x,
@@ -213,7 +213,7 @@ const Overlay: React.FC = () => {
           }}
         >
           <MousePointer2 className="w-5 h-5 drop-shadow-2xl fill-secondary stroke-primary" />
-        </div>
+        </div> */}
       </div>
     </>
   );
