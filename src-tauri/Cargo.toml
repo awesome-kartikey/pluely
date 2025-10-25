@@ -67,3 +67,10 @@ libpulse-simple-binding = "2.29.0"
 
 [target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
 tauri-plugin-autostart = "2.5.0"
+
+[profile.release]
+panic = "abort"  # Abort on panic
+codegen-units = 1  # Compile crates one after another
+lto = true       # Enable Link-Time Optimization
+opt-level = "z"  # Optimize for size
+strip = true     # Remove debug symbols

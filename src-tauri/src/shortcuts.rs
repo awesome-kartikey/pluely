@@ -65,6 +65,11 @@ pub fn handle_shortcut_action<R: Runtime>(app: &AppHandle<R>, action_id: &str) {
         "screenshot" => handle_screenshot_shortcut(app),
         "system_audio" => handle_system_audio_shortcut(app),
         "toggle_system_prompt" => handle_toggle_prompt_shortcut(app),
+        "move_window_up" => handle_move_window(app, "up"),
+        "move_window_down" => handle_move_window(app, "down"),
+        "move_window_left" => handle_move_window(app, "left"),
+        "move_window_right" => handle_move_window(app, "right"),
+        "toggle_always_on_top" => handle_toggle_always_on_top(app),
         custom_action => {
             // Emit custom action event for frontend to handle
             if let Some(window) = app.get_webview_window("main") {
@@ -189,6 +194,58 @@ fn handle_toggle_prompt_shortcut<R: Runtime>(app: &AppHandle<R>) {
         // Emit an event to the frontend to cycle to the next prompt
         if let Err(e) = window.emit("toggle-next-prompt", json!({})) {
             eprintln!("Failed to emit toggle-next-prompt event: {}", e);
+        }
+    }
+}
+
+use tauri::{Position, PhysicalPosition}; // Add these to the `use` statements at the top
+
+/// Handle window movement based on a direction
+fn handle_move_window<R: Runtime>(app: &AppHandle<R>, direction: &str) {
+    if let Some(window) = app.get_webview_window("main") {
+        if let Ok(current_pos) = window.outer_position() {
+            let mut new_x = current_pos.x;
+            let mut new_y = current_pos.y;
+            let move_amount = 30; // Move by 10 pixels
+
+            match direction {
+                "up" => new_y -= move_amount,
+                "down" => new_y += move_amount,
+                "left" => new_x -= move_amount,
+                "right" => new_x += move_amount,
+                _ => {}
+            }
+            // Clamp window position to keep it on-screen
+            let monitor = window.current_monitor().ok().flatten();
+            if let Some(mon) = monitor {
+                let size = mon.size();
+                // Don't let top go way above screen
+                if new_y < -200 { new_y = -200; } 
+                // Don't let it go way below screen
+                if new_y > (size.height as i32) - 50 { new_y = (size.height as i32) - 50; }
+            }
+
+            let new_pos = PhysicalPosition { x: new_x, y: new_y };
+            if let Err(e) = window.set_position(Position::Physical(new_pos)) {
+                eprintln!("Failed to move window: {}", e);
+            }
+        }
+    }
+}
+
+/// Handle toggling the "Always on Top" state of the main window
+fn handle_toggle_always_on_top<R: Runtime>(app: &AppHandle<R>) {
+    if let Some(window) = app.get_webview_window("main") {
+        match window.is_always_on_top() {
+            Ok(is_on_top) => {
+                // Set it to the opposite of its current state
+                if let Err(e) = window.set_always_on_top(!is_on_top) {
+                    eprintln!("Failed to toggle always on top: {}", e);
+                }
+            }
+            Err(e) => {
+                eprintln!("Failed to get always_on_top state: {}", e);
+            }
         }
     }
 }

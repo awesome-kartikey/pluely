@@ -1,0 +1,1 @@
+add a shortcut to restart and quit the app ?

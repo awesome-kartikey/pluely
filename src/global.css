@@ -122,7 +122,9 @@
 /* * {
   cursor: none !important;
 } */
-
+* {
+  cursor: default !important;
+}
 /* Apply global transparency */
 [data-slot="card"] {
   background-color: rgb(from var(--card) r g b / var(--opacity, 1)) !important;

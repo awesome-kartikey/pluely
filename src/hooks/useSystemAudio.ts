@@ -683,7 +683,7 @@ export function useSystemAudio() {
         await startCapture();
       }
     });
-  }, [startCapture, stopCapture]);
+  }, [capturing, startCapture, stopCapture]);
 
   // Manage microphone stream for audio visualizer
   useEffect(() => {

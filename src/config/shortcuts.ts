@@ -51,4 +51,54 @@ export const DEFAULT_SHORTCUT_ACTIONS: ShortcutAction[] = [
       linux: "ctrl+shift+y",
     },
   },
+   {
+    id: "move_window_up",
+    name: "Move Window Up",
+    description: "Move the window up by 10 pixels",
+    defaultKey: {
+      macos: "cmd+alt+up",
+      windows: "ctrl+alt+up",
+      linux: "ctrl+alt+up",
+    },
+  },
+  {
+    id: "move_window_down",
+    name: "Move Window Down",
+    description: "Move the window down by 10 pixels",
+    defaultKey: {
+      macos: "cmd+alt+down",
+      windows: "ctrl+alt+down",
+      linux: "ctrl+alt+down",
+    },
+  },
+  {
+    id: "move_window_left",
+    name: "Move Window Left",
+    description: "Move the window left by 10 pixels",
+    defaultKey: {
+      macos: "cmd+alt+left",
+      windows: "ctrl+alt+left",
+      linux: "ctrl+alt+left",
+    },
+  },
+  {
+    id: "move_window_right",
+    name: "Move Window Right",
+    description: "Move the window right by 10 pixels",
+    defaultKey: {
+      macos: "cmd+alt+right",
+      windows: "ctrl+alt+right",
+      linux: "ctrl+alt+right",
+    },
+  },
+  {
+    id: "toggle_always_on_top",
+    name: "Toggle Always on Top",
+    description: "Toggle whether the window stays above all others",
+    defaultKey: {
+      macos: "cmd+alt+t",
+      windows: "ctrl+alt+t",
+      linux: "ctrl+alt+t",
+    },
+  },
 ];
