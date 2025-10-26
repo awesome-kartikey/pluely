@@ -101,4 +101,24 @@ export const DEFAULT_SHORTCUT_ACTIONS: ShortcutAction[] = [
       linux: "ctrl+alt+t",
     },
   },
+  {
+    id: "exit_app",
+    name: "Quit App",
+    description: "Quit the application",
+    defaultKey: {
+      macos: "cmd+shift+q",
+      windows: "ctrl+shift+q",
+      linux: "ctrl+shift+q",
+    },
+  },
+  {
+    id: "restart_app",
+    name: "Restart App",
+    description: "Restart the application after 5 seconds",
+    defaultKey: {
+      macos: "cmd+shift+r",
+      windows: "ctrl+shift+r",
+      linux: "ctrl+shift+r",
+    },
+  },
 ];

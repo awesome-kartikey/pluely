@@ -12,6 +12,14 @@ import { useApp } from "@/contexts";
 import { STORAGE_KEYS } from "@/config/constants";
 import { safeLocalStorage } from "@/lib/storage";
 
+const truncateLabel = (label: string, maxLength: number = 80): string => {
+  if (!label) return "";
+  if (label.length <= maxLength) {
+    return label;
+  }
+  return `${label.substring(0, maxLength)}...`;
+};
+
 export const AudioSelection = () => {
   const { selectedAudioDevices, setSelectedAudioDevices } = useApp();
 
@@ -141,14 +149,16 @@ export const AudioSelection = () => {
                 <SelectTrigger className="w-full h-11 border-1 border-input/50 focus:border-primary/50 transition-colors">
                   <div className="flex items-center gap-2">
                     <MicIcon className="size-4" />
-                    <div className="text-sm font-medium truncate">
+                    <div className="text-sm font-small">
                       {isLoadingDevices
                         ? "Loading microphones..."
                         : devices.input.length === 0
                         ? "No microphones found"
-                        : devices.input.find(
-                            (mic) => mic.deviceId === selectedAudioDevices.input
-                          )?.label || "Select a microphone"}
+                        : truncateLabel(
+                            devices.input.find(
+                              (mic) => mic.deviceId === selectedAudioDevices.input
+                            )?.label || "Select a microphone"
+                          )}
                     </div>
                   </div>
                 </SelectTrigger>
@@ -237,15 +247,17 @@ export const AudioSelection = () => {
                 <SelectTrigger className="w-full h-11 border-1 border-input/50 focus:border-primary/50 transition-colors">
                   <div className="flex items-center gap-2">
                     <HeadphonesIcon className="size-4" />
-                    <div className="text-sm font-medium truncate">
+                    <div className="text-sm font-small">
                       {isLoadingDevices
                         ? "Loading output devices..."
                         : devices.output.length === 0
                         ? "No output devices found"
-                        : devices.output.find(
-                            (output) =>
-                              output.deviceId === selectedAudioDevices.output
-                          )?.label || "Select an output device"}
+                        : truncateLabel(
+                            devices.output.find(
+                              (output) =>
+                                output.deviceId === selectedAudioDevices.output
+                            )?.label || "Select an output device"
+                          )}
                     </div>
                   </div>
                 </SelectTrigger>
