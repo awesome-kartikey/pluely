@@ -189,7 +189,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setScreenshotConfiguration({
         mode: "auto",
         autoPrompt: "Analyze the screenshot and provide insights",
-        enabled: false,
+        enabled: true,
       });
       // Set the flag to true so that we don't change the mode again
       localStorage.setItem("auto-configs-enabled", "true");
