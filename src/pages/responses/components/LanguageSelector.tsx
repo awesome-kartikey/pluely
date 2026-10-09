@@ -43,7 +43,6 @@ export const LanguageSelector = () => {
           onChange={handleLanguageChange}
           options={languageOptions}
           placeholder="Select a language"
-          disabled={!hasActiveLicense}
         />
       </div>
     </div>

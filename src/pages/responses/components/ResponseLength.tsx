@@ -39,7 +39,7 @@ export const ResponseLength = () => {
               selectedLength === length.id
                 ? "border-primary"
                 : "border-border hover:border-primary/50"
-            } ${!hasActiveLicense ? "opacity-50 cursor-not-allowed" : ""}`}
+            }`}
             onClick={() => handleLengthChange(length.id)}
           >
             <div className="space-y-1">
