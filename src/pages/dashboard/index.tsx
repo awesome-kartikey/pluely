@@ -56,7 +56,7 @@ const Dashboard = () => {
       <PluelyApiSetup />
 
       <Usage
-        loading={!hasActiveLicense || loadingActivity}
+        loading={loadingActivity}
         onRefresh={fetchActivity}
         data={activityData}
         totalTokens={totalTokens}

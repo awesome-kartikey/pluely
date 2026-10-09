@@ -98,10 +98,6 @@ export const ShortcutManager = () => {
   };
 
   const handleReset = async () => {
-    if (!confirm("Reset all shortcuts to defaults? This cannot be undone.")) {
-      return;
-    }
-
     setIsApplying(true);
     try {
       const defaultConfig = resetShortcutsToDefaults();
@@ -134,7 +130,7 @@ export const ShortcutManager = () => {
           <p className="text-sm text-muted-foreground">
             {actions.length} shortcut{actions.length !== 1 ? "s" : ""}{" "}
             configured
-            {!hasActiveLicense && " • License required for customization"}
+            {!hasActiveLicense && " • Get a license to customize shortcuts"}
           </p>
         </div>
         <div className="flex gap-2">
@@ -190,8 +186,8 @@ export const ShortcutManager = () => {
                 Unlock Shortcut Customization
               </p>
               <p className="text-[10px] lg:text-xs text-muted-foreground">
-                Get a license to customize keyboard shortcuts to your
-                preference.
+                You can enable/disable shortcuts, but need a active license to
+                customize the key bindings.
               </p>
               <GetLicense
                 buttonText="Get License"
@@ -248,9 +244,9 @@ export const ShortcutManager = () => {
                     <Switch
                       checked={binding.enabled}
                       onCheckedChange={(enabled) =>
-                        !isLocked && handleToggleEnabled(action.id, enabled)
+                        handleToggleEnabled(action.id, enabled)
                       }
-                      disabled={isLocked || isApplying}
+                      disabled={isApplying}
                     />
                   </div>
 

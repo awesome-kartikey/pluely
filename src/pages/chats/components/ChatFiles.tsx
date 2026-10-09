@@ -8,6 +8,7 @@ import {
 } from "@/components";
 import { PaperclipIcon, XIcon, PlusIcon, TrashIcon } from "lucide-react";
 import { MAX_FILES } from "@/config";
+import { useApp } from "@/contexts";
 
 interface ChatFilesProps {
   attachedFiles: any[];
@@ -30,6 +31,7 @@ export const ChatFiles = ({
   setIsFilesPopoverOpen,
   disabled,
 }: ChatFilesProps) => {
+  const { supportsImages } = useApp();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleAddMoreClick = () => {
@@ -56,7 +58,11 @@ export const ChatFiles = ({
             }}
             disabled={isLoading || disabled}
             className="size-7 lg:size-9 rounded-lg lg:rounded-xl"
-            title="Attach images"
+            title={
+              supportsImages
+                ? "Attach images"
+                : "Image upload not supported by current AI provider"
+            }
           >
             <PaperclipIcon className="size-3 lg:size-4" />
           </Button>

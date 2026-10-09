@@ -14,6 +14,7 @@ import { shouldUsePluelyAPI } from "./pluely.api";
 import { CHUNK_POLL_INTERVAL_MS } from "../chat-constants";
 import { getResponseSettings, RESPONSE_LENGTHS, LANGUAGES } from "@/lib";
 import { executeSmartAIResponse, isRateLimitOrQuotaError } from "./smart-ai-engine";
+import { MARKDOWN_FORMATTING_INSTRUCTIONS } from "@/config/constants";
 
 function buildEnhancedSystemPrompt(baseSystemPrompt?: string): string {
   const responseSettings = getResponseSettings();
@@ -36,6 +37,9 @@ function buildEnhancedSystemPrompt(baseSystemPrompt?: string): string {
   if (languageOption?.prompt?.trim()) {
     prompts.push(languageOption.prompt);
   }
+
+  // Add markdown formatting instructions
+  prompts.push(MARKDOWN_FORMATTING_INSTRUCTIONS);
 
   return prompts.join(" ");
 }

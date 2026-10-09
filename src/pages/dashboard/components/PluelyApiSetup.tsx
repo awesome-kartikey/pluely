@@ -27,6 +27,7 @@ interface ActivationResponse {
     name: string;
     created_at: string;
   };
+  is_dev_license?: boolean;
 }
 
 interface StorageResult {
@@ -56,6 +57,7 @@ export const PluelyApiSetup = () => {
     hasActiveLicense,
     setHasActiveLicense,
     getActiveLicenseStatus,
+    setSupportsImages,
   } = useApp();
 
   const [licenseKey, setLicenseKey] = useState("");
@@ -175,9 +177,12 @@ export const PluelyApiSetup = () => {
         setLicenseKey(""); // Clear the input
 
         // Auto-enable Pluely API when license is activated
-        setPluelyApiEnabled(true);
+        if (!response?.is_dev_license) {
+          setPluelyApiEnabled(true);
+        }
 
         await loadLicenseStatus(); // Reload status
+        await fetchModels();
         await getActiveLicenseStatus();
       } else {
         setError(response.error || "Failed to activate license");
@@ -210,6 +215,7 @@ export const PluelyApiSetup = () => {
       // Disable Pluely API when license is removed
       setPluelyApiEnabled(false);
 
+      await fetchModels();
       await loadLicenseStatus(); // Reload status
     } catch (err) {
       console.error("Failed to remove license:", err);
@@ -224,6 +230,13 @@ export const PluelyApiSetup = () => {
     setSelectedModel(model);
     setIsPopoverOpen(false); // Close popover when model is selected
     setSearchValue(""); // Reset search when model is selected
+
+    // Update supportsImages based on the selected model
+    if (pluelyApiEnabled) {
+      const hasImageSupport = model.modality?.includes("image") ?? false;
+      setSupportsImages(hasImageSupport);
+    }
+
     try {
       await invoke("secure_storage_save", {
         items: [

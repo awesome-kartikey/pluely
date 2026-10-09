@@ -77,13 +77,24 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   );
 
   const [selectedAudioDevices, setSelectedAudioDevices] = useState<{
-    input: string;
-    output: string;
-  }>({
-    input:
-      safeLocalStorage.getItem(STORAGE_KEYS.SELECTED_AUDIO_INPUT_DEVICE) || "",
-    output:
-      safeLocalStorage.getItem(STORAGE_KEYS.SELECTED_AUDIO_OUTPUT_DEVICE) || "",
+    input: { id: string; name: string };
+    output: { id: string; name: string };
+  }>(() => {
+    const savedDevices = safeLocalStorage.getItem(
+      STORAGE_KEYS.SELECTED_AUDIO_DEVICES
+    );
+    if (savedDevices) {
+      try {
+        return JSON.parse(savedDevices);
+      } catch {
+        // Return default on parse error
+      }
+    }
+
+    return {
+      input: { id: "", name: "" },
+      output: { id: "", name: "" },
+    };
   });
 
   const DEFAULT_AI_PROVIDER = {
@@ -129,6 +140,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     DEFAULT_CUSTOMIZABLE_STATE
   );
   const [hasActiveLicense, setHasActiveLicense] = useState<boolean>(false);
+  const [supportsImages, setSupportsImagesState] = useState<boolean>(() => {
+    const stored = safeLocalStorage.getItem(STORAGE_KEYS.SUPPORTS_IMAGES);
+    return stored === null ? true : stored === "true";
+  });
+
+  // Wrapper to sync supportsImages to localStorage
+  const setSupportsImages = (value: boolean) => {
+    setSupportsImagesState(value);
+    safeLocalStorage.setItem(STORAGE_KEYS.SUPPORTS_IMAGES, String(value));
+  };
 
   // Pluely API State
   const [pluelyApiEnabled, setPluelyApiEnabledState] = useState<boolean>(
@@ -136,10 +157,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   );
 
   const getActiveLicenseStatus = async () => {
-    const response: { is_active: boolean } = await invoke(
-      "validate_license_api"
-    );
+    const response: { is_active: boolean; is_dev_license: boolean } =
+      await invoke("validate_license_api");
     setHasActiveLicense(response.is_active);
+
+    if (response?.is_dev_license) {
+      setPluelyApiEnabled(false);
+    }
+
     // Check if the auto configs are enabled
     const autoConfigsEnabled = localStorage.getItem("auto-configs-enabled");
     if (response.is_active && !autoConfigsEnabled) {
@@ -288,6 +313,21 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (savedPluelyApiEnabled !== null) {
       setPluelyApiEnabledState(savedPluelyApiEnabled === "true");
     }
+
+    // Load selected audio devices
+    const savedAudioDevices = safeLocalStorage.getItem(
+      STORAGE_KEYS.SELECTED_AUDIO_DEVICES
+    );
+    if (savedAudioDevices) {
+      try {
+        const parsed = JSON.parse(savedAudioDevices);
+        if (parsed && typeof parsed === "object") {
+          setSelectedAudioDevices(parsed);
+        }
+      } catch {
+        console.warn("Failed to parse selected audio devices");
+      }
+    }
   };
 
   const updateCursor = (type: CursorType | undefined) => {
@@ -418,6 +458,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   // Listen to storage events for real-time sync (e.g., multi-tab)
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
+      // Sync supportsImages across windows
+      if (e.key === STORAGE_KEYS.SUPPORTS_IMAGES && e.newValue !== null) {
+        setSupportsImagesState(e.newValue === "true");
+      }
+
       if (
         e.key === STORAGE_KEYS.CUSTOM_AI_PROVIDERS ||
         e.key === STORAGE_KEYS.SELECTED_AI_PROVIDER ||
@@ -425,7 +470,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         e.key === STORAGE_KEYS.SELECTED_STT_PROVIDER ||
         e.key === STORAGE_KEYS.SYSTEM_PROMPT ||
         e.key === STORAGE_KEYS.SCREENSHOT_CONFIG ||
-        e.key === STORAGE_KEYS.CUSTOMIZABLE
+        e.key === STORAGE_KEYS.CUSTOMIZABLE ||
+        e.key === STORAGE_KEYS.SELECTED_AUDIO_DEVICES
       ) {
         loadData();
       }
@@ -433,6 +479,44 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     window.addEventListener("storage", handleStorageChange);
     return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
+
+  // Check if the current AI provider/model supports images
+  useEffect(() => {
+    const checkImageSupport = async () => {
+      if (pluelyApiEnabled) {
+        // For Pluely API, check the selected model's modality
+        try {
+          const storage = await invoke<{
+            selected_pluely_model?: string;
+          }>("secure_storage_get");
+
+          if (storage.selected_pluely_model) {
+            const model = JSON.parse(storage.selected_pluely_model);
+            const hasImageSupport = model.modality?.includes("image") ?? false;
+            setSupportsImages(hasImageSupport);
+          } else {
+            // No model selected, assume no image support
+            setSupportsImages(false);
+          }
+        } catch (error) {
+          setSupportsImages(false);
+        }
+      } else {
+        // For custom AI providers, check if curl contains {{IMAGE}}
+        const provider = allAiProviders.find(
+          (p) => p.id === selectedAIProvider.provider
+        );
+        if (provider) {
+          const hasImageSupport = provider.curl?.includes("{{IMAGE}}") ?? false;
+          setSupportsImages(hasImageSupport);
+        } else {
+          setSupportsImages(true);
+        }
+      }
+    };
+
+    checkImageSupport();
+  }, [pluelyApiEnabled, selectedAIProvider.provider]);
 
   // Sync selected AI to localStorage
   useEffect(() => {
@@ -476,6 +560,18 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (provider && !allAiProviders.some((p) => p.id === provider)) {
       console.warn(`Invalid AI provider ID: ${provider}`);
       return;
+    }
+
+    // Update supportsImages immediately when provider changes
+    if (!pluelyApiEnabled) {
+      const selectedProvider = allAiProviders.find((p) => p.id === provider);
+      if (selectedProvider) {
+        const hasImageSupport =
+          selectedProvider.curl?.includes("{{IMAGE}}") ?? false;
+        setSupportsImages(hasImageSupport);
+      } else {
+        setSupportsImages(true);
+      }
     }
 
     setSelectedAIProvider((prev) => ({
@@ -548,9 +644,41 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     loadData();
   };
 
-  const setPluelyApiEnabled = (enabled: boolean) => {
+  const setPluelyApiEnabled = async (enabled: boolean) => {
     setPluelyApiEnabledState(enabled);
     safeLocalStorage.setItem(STORAGE_KEYS.PLUELY_API_ENABLED, String(enabled));
+
+    if (enabled) {
+      try {
+        const storage = await invoke<{
+          selected_pluely_model?: string;
+        }>("secure_storage_get");
+
+        if (storage.selected_pluely_model) {
+          const model = JSON.parse(storage.selected_pluely_model);
+          const hasImageSupport = model.modality?.includes("image") ?? false;
+          setSupportsImages(hasImageSupport);
+        } else {
+          // No model selected, assume no image support
+          setSupportsImages(false);
+        }
+      } catch (error) {
+        console.debug("Failed to check Pluely model image support:", error);
+        setSupportsImages(false);
+      }
+    } else {
+      // Switching to regular provider - check if curl contains {{IMAGE}}
+      const provider = allAiProviders.find(
+        (p) => p.id === selectedAIProvider.provider
+      );
+      if (provider) {
+        const hasImageSupport = provider.curl?.includes("{{IMAGE}}") ?? false;
+        setSupportsImages(hasImageSupport);
+      } else {
+        setSupportsImages(true);
+      }
+    }
+
     loadData();
   };
 
@@ -581,6 +709,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     selectedAudioDevices,
     setSelectedAudioDevices,
     setCursorType,
+    supportsImages,
+    setSupportsImages,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

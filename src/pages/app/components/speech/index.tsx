@@ -1,3 +1,4 @@
+import { useState, useCallback, useEffect } from "react";
 import {
   Button,
   Popover,
@@ -10,15 +11,21 @@ import {
   AlertCircleIcon,
   LoaderIcon,
   AudioLinesIcon,
+  CameraIcon,
+  PlusIcon,
+  XIcon,
 } from "lucide-react";
-import { Warning } from "./Warning";
-import { Header } from "./Header";
-import { SetupInstructions } from "./SetupInstructions";
-import { OperationSection } from "./OperationSection";
-import { Context } from "./Context";
-import { VadConfigPanel } from "./VadConfigPanel";
+import { invoke } from "@tauri-apps/api/core";
+import { ModeSwitcher } from "./ModeSwitcher";
+import { RecordingPanel } from "./RecordingPanel";
+import { ResultsSection } from "./ResultsSection";
+import { SettingsPanel } from "./SettingsPanel";
 import { PermissionFlow } from "./PermissionFlow";
+import { QuickActions } from "./QuickActions";
+import { Warning } from "./Warning";
 import { useSystemAudioType } from "@/hooks";
+import { useApp } from "@/contexts";
+import { cn } from "@/lib/utils";
 
 export const SystemAudio = (props: useSystemAudioType) => {
   const {
@@ -40,7 +47,6 @@ export const SystemAudio = (props: useSystemAudioType) => {
     startNewConversation,
     conversation,
     resizeWindow,
-    handleSetup,
     quickActions,
     addQuickAction,
     removeQuickAction,
@@ -51,7 +57,6 @@ export const SystemAudio = (props: useSystemAudioType) => {
     handleQuickActionClick,
     vadConfig,
     updateVadConfiguration,
-    isContinuousMode,
     isRecordingInContinuousMode,
     recordingProgress,
     manualStopAndSend,
@@ -59,7 +64,42 @@ export const SystemAudio = (props: useSystemAudioType) => {
     ignoreContinuousRecording,
     scrollAreaRef,
   } = props;
-  const platform = navigator.platform.toLowerCase();
+
+  const { hasActiveLicense, supportsImages } = useApp();
+
+  // View mode toggle
+  const [conversationMode, setConversationMode] = useState(false);
+
+  // Screenshot state
+  const [screenshotImage, setScreenshotImage] = useState<string | null>(null);
+  const [isCapturingScreenshot, setIsCapturingScreenshot] = useState(false);
+
+  const isVadMode = vadConfig.enabled;
+  const hasResponse = lastAIResponse || isAIProcessing;
+
+  // Keyboard shortcut for Cmd+K to toggle view mode
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!isPopoverOpen) return;
+
+      // Cmd+K or Ctrl+K to toggle view mode
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setConversationMode((prev) => !prev);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isPopoverOpen]);
+
+  // Reset screenshot when processing starts (message is being sent)
+  useEffect(() => {
+    if (isProcessing && screenshotImage) {
+      setScreenshotImage(null);
+    }
+  }, [isProcessing, screenshotImage]);
+
   const handleToggleCapture = async () => {
     if (capturing) {
       await stopCapture();
@@ -67,6 +107,52 @@ export const SystemAudio = (props: useSystemAudioType) => {
       await startCapture();
     }
   };
+
+  const handleModeChange = (vadEnabled: boolean) => {
+    updateVadConfiguration({
+      ...vadConfig,
+      enabled: vadEnabled,
+    });
+  };
+
+  // Capture screenshot functionality
+  const handleCaptureScreenshot = useCallback(async () => {
+    if (isCapturingScreenshot) return;
+
+    setIsCapturingScreenshot(true);
+    try {
+      // Check screen recording permission on macOS
+      const platform = navigator.platform.toLowerCase();
+      if (platform.includes("mac")) {
+        const {
+          checkScreenRecordingPermission,
+          requestScreenRecordingPermission,
+        } = await import("tauri-plugin-macos-permissions-api");
+
+        const hasPermission = await checkScreenRecordingPermission();
+        if (!hasPermission) {
+          await requestScreenRecordingPermission();
+          setIsCapturingScreenshot(false);
+          return;
+        }
+      }
+
+      // Capture screenshot
+      const base64: string = await invoke("capture_screenshot", {
+        screenId: null, // Use default screen
+      });
+
+      setScreenshotImage(base64);
+    } catch (err) {
+      console.error("Failed to capture screenshot:", err);
+    } finally {
+      setIsCapturingScreenshot(false);
+    }
+  }, [isCapturingScreenshot]);
+
+  const handleRemoveScreenshot = useCallback(() => {
+    setScreenshotImage(null);
+  }, []);
 
   const getButtonIcon = () => {
     if (setupRequired) return <AlertCircleIcon className="text-orange-500" />;
@@ -90,7 +176,6 @@ export const SystemAudio = (props: useSystemAudioType) => {
     <Popover
       open={isPopoverOpen}
       onOpenChange={(open) => {
-        // Don't allow closing the popover when capturing is active
         if (capturing && !open) {
           return;
         }
@@ -102,212 +187,211 @@ export const SystemAudio = (props: useSystemAudioType) => {
           size="icon"
           title={getButtonTitle()}
           onClick={handleToggleCapture}
-          className={`${capturing ? "bg-green-50 hover:bg-green-100" : ""} ${
-            error ? "bg-red-100 hover:bg-red-200" : ""
-          }`}
+          className={cn(
+            capturing && "bg-green-50 hover:bg-green-100",
+            error && "bg-red-100 hover:bg-red-200"
+          )}
         >
           {getButtonIcon()}
         </Button>
       </PopoverTrigger>
 
-      {capturing || setupRequired || error ? (
+      {(capturing || setupRequired || error) && (
         <PopoverContent
           align="end"
           side="bottom"
-          className="select-none w-screen p-0 border overflow-hidden border-input/50"
+          className="select-none w-screen p-0 border shadow-lg overflow-hidden border-input/50"
           sideOffset={8}
         >
-          <ScrollArea className="h-[calc(100vh-4rem)]" ref={scrollAreaRef}>
-            <div
-              className={`p-6 ${
-                !lastTranscription && !lastAIResponse
-                  ? "space-y-6"
-                  : "space-y-4"
-              }`}
-            >
-              {/* Header - Hide when there are messages to save space */}
-              {!lastTranscription && !lastAIResponse && (
-                <Header
-                  setupRequired={setupRequired}
-                  setIsPopoverOpen={setIsPopoverOpen}
-                  resizeWindow={resizeWindow}
-                  capturing={capturing}
-                />
-              )}
+          <div className="flex flex-col h-[calc(100vh-4rem)] overflow-hidden">
+            {/* Header - Mode Switcher + Actions */}
+            <div className="flex-shrink-0 p-3 border-b border-border/50">
+              <div className="flex items-center justify-between gap-2">
+                {/* Mode Switcher */}
+                {!setupRequired && (
+                  <ModeSwitcher
+                    isVadMode={isVadMode}
+                    onModeChange={handleModeChange}
+                    disabled={
+                      isRecordingInContinuousMode ||
+                      isProcessing ||
+                      isAIProcessing
+                    }
+                  />
+                )}
+                {setupRequired && (
+                  <h2 className="font-semibold text-sm">Setup Required</h2>
+                )}
 
-              {/* Continuous Recording UI - Show when in continuous mode */}
-              {isContinuousMode && (
-                <div className="space-y-3">
-                  <div className="border rounded-lg p-4">
-                    <div className="flex items-start gap-3 mb-3">
-                      {isProcessing || isAIProcessing ? (
-                        <LoaderIcon className="w-5 h-5 animate-spin mt-0.5" />
-                      ) : isRecordingInContinuousMode ? (
-                        <AudioLinesIcon className="w-5 h-5 animate-pulse mt-0.5" />
+                {/* Action Buttons */}
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  {/* Screenshot Button */}
+                  {hasActiveLicense && !setupRequired && supportsImages && (
+                    <Button
+                      size="sm"
+                      variant={screenshotImage ? "default" : "outline"}
+                      onClick={handleCaptureScreenshot}
+                      disabled={isCapturingScreenshot}
+                      className={cn(
+                        "h-6 text-[10px] gap-1 px-2",
+                        screenshotImage && "bg-primary text-primary-foreground"
+                      )}
+                      title="Capture screenshot to include with transcription"
+                    >
+                      {isCapturingScreenshot ? (
+                        <LoaderIcon className="w-3 h-3 animate-spin" />
                       ) : (
-                        <AudioLinesIcon className="w-5 h-5 mt-0.5 opacity-50" />
+                        <CameraIcon className="w-3 h-3" />
                       )}
-                      <div className="flex-1">
-                        <h4 className="font-medium text-sm mb-1">
-                          {isProcessing || isAIProcessing
-                            ? "Processing Your Audio..."
-                            : isRecordingInContinuousMode
-                            ? "Recording Audio (Continuous Mode)"
-                            : "Continuous Mode (Not Recording)"}
-                        </h4>
-                        <p className="text-xs text-muted-foreground">
-                          {isProcessing || isAIProcessing
-                            ? "Transcribing and generating AI response..."
-                            : isRecordingInContinuousMode
-                            ? `Recording up to ${vadConfig.max_recording_duration_secs}s. You can stop anytime.`
-                            : "Click Start to begin recording, or adjust settings below."}
-                        </p>
-                      </div>
-                    </div>
+                      Screenshot
+                    </Button>
+                  )}
 
-                    {/* Progress Bar - Only show when actively recording */}
-                    {isRecordingInContinuousMode &&
-                      !isProcessing &&
-                      !isAIProcessing && (
-                        <div className="space-y-2 mb-3">
-                          <div className="flex justify-between text-xs text-muted-foreground">
-                            <span>Duration: {recordingProgress}s</span>
-                            <span>
-                              Max: {vadConfig.max_recording_duration_secs}s
-                            </span>
-                          </div>
-                          <div className="w-full bg-muted rounded-full h-2">
-                            <div
-                              className="bg-primary h-2 rounded-full transition-all duration-500"
-                              style={{
-                                width: `${
-                                  (recordingProgress /
-                                    vadConfig.max_recording_duration_secs) *
-                                  100
-                                }%`,
-                              }}
-                            />
-                          </div>
-                        </div>
-                      )}
+                  {/* New Conversation Button */}
+                  {!setupRequired && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={startNewConversation}
+                      className="h-6 text-[10px] gap-1 px-2"
+                      title="Start a new conversation"
+                    >
+                      <PlusIcon className="w-3 h-3" />
+                      New
+                    </Button>
+                  )}
 
-                    {/* Control Buttons */}
-                    {!isProcessing && !isAIProcessing && (
-                      <div className="grid grid-cols-3 gap-2">
-                        {!isRecordingInContinuousMode ? (
-                          <Button
-                            onClick={startContinuousRecording}
-                            variant="default"
-                            className="col-span-3"
-                            size="lg"
-                          >
-                            <AudioLinesIcon className="w-4 h-4 mr-2" />
-                            Start Recording
-                          </Button>
-                        ) : (
-                          <>
-                            <Button
-                              onClick={ignoreContinuousRecording}
-                              variant="outline"
-                              className="col-span-1"
-                            >
-                              Ignore
-                            </Button>
-                            <Button
-                              onClick={manualStopAndSend}
-                              variant="default"
-                              className="col-span-2"
-                            >
-                              Stop & Send
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                  {/* Close Button */}
+                  {!capturing && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-6 w-6"
+                      title="Close"
+                      onClick={() => {
+                        setIsPopoverOpen(false);
+                        resizeWindow(false);
+                      }}
+                    >
+                      <XIcon className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
                 </div>
-              )}
+              </div>
+            </div>
 
-              {/* Error Display - Show simple error messages for non-setup issues */}
-              {error && !setupRequired && (
-                <div className="space-y-3">
-                  <div className="flex items-start gap-3">
-                    <AlertCircleIcon className="w-5 h-5 text-red-500 mt-1 flex-shrink-0" />
-                    <div className="space-y-2 w-full">
-                      <div>
-                        <h3 className="font-semibold text-xs mb-1 text-red-700">
-                          Audio Capture Error
-                        </h3>
-                      </div>
-                      <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                        <p className="text-xs text-red-800">{error}</p>
-                      </div>
+            <ScrollArea className="flex-1 min-h-0" ref={scrollAreaRef}>
+              <div className="p-2 space-y-2">
+                {/* Screenshot Preview */}
+                {screenshotImage && (
+                  <div className="flex items-center gap-2 p-2 rounded-lg bg-primary/5 border border-primary/20">
+                    <img
+                      src={`data:image/png;base64,${screenshotImage}`}
+                      alt="Screenshot"
+                      className="h-12 w-20 object-cover rounded"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] font-medium">
+                        Screenshot attached
+                      </p>
+                      <p className="text-[9px] text-muted-foreground">
+                        Will be sent with next transcription
+                      </p>
+                    </div>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-5 w-5"
+                      onClick={handleRemoveScreenshot}
+                    >
+                      <XIcon className="h-3 w-3" />
+                    </Button>
+                  </div>
+                )}
+
+                {/* Error Display */}
+                {error && !setupRequired && (
+                  <div className="flex items-start gap-2 p-2.5 rounded-lg bg-red-50 border border-red-200">
+                    <AlertCircleIcon className="w-3.5 h-3.5 text-red-500 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-[10px] font-medium text-red-800">
+                        Error
+                      </p>
+                      <p className="text-[10px] text-red-700">{error}</p>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {setupRequired ? (
-                // Enhanced Permission Flow
-                <div className="space-y-4">
+                {/* Setup Required - Permission Flow */}
+                {setupRequired ? (
                   <PermissionFlow
                     onPermissionGranted={() => {
                       startCapture();
                     }}
                     onPermissionDenied={() => {
-                      // Permission was denied, keep showing setup instructions
+                      // Keep showing setup instructions
                     }}
                   />
-                  <SetupInstructions
-                    setupRequired={setupRequired}
-                    handleSetup={handleSetup}
-                  />
-                </div>
-              ) : (
-                <>
-                  {/* Operation Section */}
-                  <OperationSection
-                    lastTranscription={lastTranscription}
-                    lastAIResponse={lastAIResponse}
-                    isAIProcessing={isAIProcessing}
-                    conversation={conversation}
-                    startNewConversation={startNewConversation}
-                    quickActions={quickActions}
-                    addQuickAction={addQuickAction}
-                    removeQuickAction={removeQuickAction}
-                    isManagingQuickActions={isManagingQuickActions}
-                    setIsManagingQuickActions={setIsManagingQuickActions}
-                    showQuickActions={showQuickActions}
-                    setShowQuickActions={setShowQuickActions}
-                    handleQuickActionClick={handleQuickActionClick}
-                  />
-                  {/* Context Settings */}
-                  <Context
-                    useSystemPrompt={useSystemPrompt}
-                    setUseSystemPrompt={setUseSystemPrompt}
-                    contextContent={contextContent}
-                    setContextContent={setContextContent}
-                  />
+                ) : (
+                  <>
+                    {/* Recording Panel */}
+                    <RecordingPanel
+                      isVadMode={isVadMode}
+                      isRecording={isRecordingInContinuousMode}
+                      isProcessing={isProcessing}
+                      isAIProcessing={isAIProcessing}
+                      recordingProgress={recordingProgress}
+                      maxDuration={vadConfig.max_recording_duration_secs}
+                      onStartRecording={startContinuousRecording}
+                      onStopAndSend={manualStopAndSend}
+                      onIgnore={ignoreContinuousRecording}
+                    />
 
-                  {/* VAD Configuration */}
-                  <VadConfigPanel
-                    vadConfig={vadConfig}
-                    onUpdate={updateVadConfiguration}
-                  />
-                </>
-              )}
-              {!setupRequired && platform.includes("mac") && (
-                <SetupInstructions
-                  setupRequired={setupRequired}
-                  handleSetup={handleSetup}
+                    {/* AI Response */}
+                    <ResultsSection
+                      lastTranscription={lastTranscription}
+                      lastAIResponse={lastAIResponse}
+                      isAIProcessing={isAIProcessing}
+                      conversation={conversation}
+                      conversationMode={conversationMode}
+                      setConversationMode={setConversationMode}
+                    />
+
+                    {/* Settings Panel */}
+                    <SettingsPanel
+                      vadConfig={vadConfig}
+                      onUpdateVadConfig={updateVadConfiguration}
+                      useSystemPrompt={useSystemPrompt}
+                      setUseSystemPrompt={setUseSystemPrompt}
+                      contextContent={contextContent}
+                      setContextContent={setContextContent}
+                    />
+
+                    {/* Help/Keyboard Shortcuts */}
+                    <Warning isVadMode={isVadMode} />
+                  </>
+                )}
+              </div>
+            </ScrollArea>
+
+            {/* Quick Actions */}
+            {!setupRequired && hasResponse && (
+              <div className="flex-shrink-0 border-t border-border/50 p-2">
+                <QuickActions
+                  actions={quickActions}
+                  onActionClick={handleQuickActionClick}
+                  onAddAction={addQuickAction}
+                  onRemoveAction={removeQuickAction}
+                  isManaging={isManagingQuickActions}
+                  setIsManaging={setIsManagingQuickActions}
+                  show={showQuickActions}
+                  setShow={setShowQuickActions}
                 />
-              )}
-              {/* Experimental Warning */}
-              <Warning />
-            </div>
-          </ScrollArea>
+              </div>
+            )}
+          </div>
         </PopoverContent>
-      ) : null}
+      )}
     </Popover>
   );
 };

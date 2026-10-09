@@ -164,12 +164,14 @@ pub struct ActivationResponse {
     error: Option<String>,
     license_key: Option<String>,
     instance: Option<InstanceInfo>,
+    is_dev_license: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ValidateResponse {
     is_active: bool,
     last_validated_at: Option<String>,
+    is_dev_license: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -325,6 +327,7 @@ pub async fn validate_license_api(app: AppHandle) -> Result<ValidateResponse, St
         return Ok(ValidateResponse {
             is_active: false,
             last_validated_at: None,
+            is_dev_license: false,
         });
     }
 

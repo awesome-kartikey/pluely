@@ -10,6 +10,7 @@ import {
   MESSAGE_ID_OFFSET,
   generateMessageId,
   generateRequestId,
+  getResponseSettings,
 } from "@/lib";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -88,7 +89,10 @@ export const useChatCompletion = (
   }, [screenshotConfiguration]);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const responseSettings = getResponseSettings();
+    if (responseSettings.autoScroll) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   };
 
   const setInput = useCallback((value: string) => {

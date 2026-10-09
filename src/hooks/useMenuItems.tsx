@@ -122,7 +122,7 @@ export const useMenuItems = () => {
     {
       title: "Follow on X",
       icon: XIcon,
-      link: "https://x.com/truly_sn",
+      link: "https://x.com/srikanthnani",
     },
   ];
 

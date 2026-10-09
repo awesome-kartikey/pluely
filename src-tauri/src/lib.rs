@@ -100,6 +100,7 @@ pub fn run() {
             api::transcribe_audio,
             api::chat_stream_response,
             api::fetch_models,
+            api::fetch_prompts,
             api::create_system_prompt,
             api::check_license_status,
             api::get_activity,
@@ -112,17 +113,18 @@ pub fn run() {
             speaker::update_vad_config,
             speaker::get_capture_status,
             speaker::get_audio_sample_rate,
+            speaker::get_input_devices,
+            speaker::get_output_devices,
         ])
         .setup(|app| {
             // Setup main window positioning
             window::setup_main_window(app).expect("Failed to setup main window");
             #[cfg(target_os = "macos")]
             init(app.app_handle());
-
             let app_handle = app.handle();
             if app_handle.get_webview_window("dashboard").is_none() {
                 if let Err(e) = window::create_dashboard_window(&app_handle) {
-                    eprintln!("Failed to create dashboard window on startup: {}", e);
+                    eprintln!("Failed to pre-create dashboard window on startup: {}", e);
                 }
             }
 

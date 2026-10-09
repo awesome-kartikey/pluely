@@ -16,7 +16,7 @@ const AUDIO_CONFIG = {
 
 interface AudioVisualizerProps {
   isRecording: boolean;
-  stream: MediaStream | null;
+  stream?: MediaStream | null;
 }
 
 export function AudioVisualizer({ stream, isRecording }: AudioVisualizerProps) {
@@ -26,14 +26,27 @@ export function AudioVisualizer({ stream, isRecording }: AudioVisualizerProps) {
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationFrameRef = useRef<number>(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const oscillatorsRef = useRef<OscillatorNode[]>([]);
+  const gainNodesRef = useRef<GainNode[]>([]);
 
   // Cleanup function to stop visualization and close audio context
   const cleanup = () => {
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
     }
+    // Stop all oscillators
+    oscillatorsRef.current.forEach((osc) => {
+      try {
+        osc.stop();
+      } catch {
+        // Oscillator may already be stopped
+      }
+    });
+    oscillatorsRef.current = [];
+    gainNodesRef.current = [];
     if (audioContextRef.current) {
       audioContextRef.current.close();
+      audioContextRef.current = null;
     }
   };
 
@@ -44,7 +57,7 @@ export function AudioVisualizer({ stream, isRecording }: AudioVisualizerProps) {
 
   // Start or stop visualization based on recording state
   useEffect(() => {
-    if (stream && isRecording) {
+    if (isRecording) {
       startVisualization();
     } else {
       cleanup();
@@ -79,6 +92,62 @@ export function AudioVisualizer({ stream, isRecording }: AudioVisualizerProps) {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // Create a fake audio stream using oscillators that mimic speech patterns
+  const createFakeStream = (
+    audioContext: AudioContext,
+    analyser: AnalyserNode
+  ) => {
+    // Create multiple oscillators with different frequencies to simulate speech
+    const frequencies = [120, 240, 350, 500, 800, 1200, 2000, 3500];
+    const oscillators: OscillatorNode[] = [];
+    const gainNodes: GainNode[] = [];
+
+    frequencies.forEach((freq, index) => {
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      // Use different wave types for variety
+      oscillator.type = index % 2 === 0 ? "sine" : "triangle";
+      oscillator.frequency.setValueAtTime(freq, audioContext.currentTime);
+
+      // Set initial gain (very low to simulate quiet speech)
+      gainNode.gain.setValueAtTime(0.01, audioContext.currentTime);
+
+      oscillator.connect(gainNode);
+      gainNode.connect(analyser);
+
+      oscillator.start();
+      oscillators.push(oscillator);
+      gainNodes.push(gainNode);
+    });
+
+    oscillatorsRef.current = oscillators;
+    gainNodesRef.current = gainNodes;
+
+    // Animate the gain to simulate speech patterns
+    const animateGain = () => {
+      if (!isRecording || !audioContextRef.current) return;
+
+      gainNodes.forEach((gainNode, index) => {
+        // Create random fluctuations to simulate speech
+        const baseGain = 0.02 + Math.random() * 0.08;
+        const speechPattern =
+          Math.sin(Date.now() / (200 + index * 50)) * 0.5 + 0.5;
+        const randomBurst = Math.random() > 0.7 ? Math.random() * 0.1 : 0;
+        const targetGain = baseGain * speechPattern + randomBurst;
+
+        gainNode.gain.linearRampToValueAtTime(
+          targetGain,
+          audioContextRef.current!.currentTime + 0.05
+        );
+      });
+
+      setTimeout(animateGain, 100);
+    };
+
+    animateGain();
+  };
+
   // Initialize audio context and start visualization
   const startVisualization = async () => {
     try {
@@ -90,8 +159,14 @@ export function AudioVisualizer({ stream, isRecording }: AudioVisualizerProps) {
       analyser.smoothingTimeConstant = AUDIO_CONFIG.SMOOTHING;
       analyserRef.current = analyser;
 
-      const source = audioContext.createMediaStreamSource(stream!);
-      source.connect(analyser);
+      if (stream) {
+        // Use real stream if available
+        const source = audioContext.createMediaStreamSource(stream);
+        source.connect(analyser);
+      } else {
+        // Create fake stream for visualization
+        createFakeStream(audioContext, analyser);
+      }
 
       draw();
     } catch (error) {
@@ -180,8 +255,8 @@ export function AudioVisualizer({ stream, isRecording }: AudioVisualizerProps) {
   };
 
   return (
-    <div ref={containerRef} className="!h-[32px] !w-full">
-      <canvas ref={canvasRef} className="h-full !w-full pl-8" />
+    <div ref={containerRef} className="!h-[32px] !w-full pl-4 pt-2">
+      <canvas ref={canvasRef} className="h-full !w-full" />
     </div>
   );
 }

@@ -16,6 +16,13 @@ let globalEventListeners: {
 // Global debounce for screenshot events to prevent duplicates
 let lastScreenshotEventTime = 0;
 
+// Global callback refs
+let globalInputRef: HTMLInputElement | null = null;
+let globalAudioCallback: (() => void) | null = null;
+let globalScreenshotCallback: (() => void | Promise<void>) | null = null;
+let globalSystemAudioCallback: (() => void) | null = null;
+let globalCustomShortcutCallbacks: Map<string, () => void> = new Map();
+
 export const useGlobalShortcuts = () => {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const audioCallbackRef = useRef<(() => void) | null>(null);
@@ -62,17 +69,20 @@ export const useGlobalShortcuts = () => {
   // Register input element for auto-focus
   const registerInputRef = useCallback((input: HTMLInputElement | null) => {
     inputRef.current = input;
+    globalInputRef = input;
   }, []);
 
   // Register audio callback
   const registerAudioCallback = useCallback((callback: () => void) => {
     audioCallbackRef.current = callback;
+    globalAudioCallback = callback;
   }, []);
 
   // Register screenshot callback
   const registerScreenshotCallback = useCallback(
     (callback: () => void | Promise<void>) => {
       screenshotCallbackRef.current = callback;
+      globalScreenshotCallback = callback;
     },
     []
   );
@@ -80,12 +90,14 @@ export const useGlobalShortcuts = () => {
   // Register system audio callback
   const registerSystemAudioCallback = useCallback((callback: () => void) => {
     systemAudioCallbackRef.current = callback;
+    globalSystemAudioCallback = callback;
   }, []);
 
   // Register custom shortcut callback
   const registerCustomShortcutCallback = useCallback(
     (actionId: string, callback: () => void) => {
       customShortcutCallbacksRef.current.set(actionId, callback);
+      globalCustomShortcutCallbacks.set(actionId, callback);
     },
     []
   );
@@ -93,6 +105,7 @@ export const useGlobalShortcuts = () => {
   // Unregister custom shortcut callback
   const unregisterCustomShortcutCallback = useCallback((actionId: string) => {
     customShortcutCallbacksRef.current.delete(actionId);
+    globalCustomShortcutCallbacks.delete(actionId);
   }, []);
 
   // Setup event listeners using global singleton
@@ -149,8 +162,8 @@ export const useGlobalShortcuts = () => {
         // Listen for focus text input event
         const unlistenFocus = await listen("focus-text-input", () => {
           setTimeout(() => {
-            if (inputRef.current) {
-              inputRef.current.focus();
+            if (globalInputRef) {
+              globalInputRef.focus();
             }
           }, 100);
         });
@@ -158,8 +171,8 @@ export const useGlobalShortcuts = () => {
 
         // Listen for audio recording event
         const unlistenAudio = await listen("start-audio-recording", () => {
-          if (audioCallbackRef.current) {
-            audioCallbackRef.current();
+          if (globalAudioCallback) {
+            globalAudioCallback();
           }
         });
         globalEventListeners.audio = unlistenAudio;
@@ -176,9 +189,9 @@ export const useGlobalShortcuts = () => {
 
           lastScreenshotEventTime = now;
 
-          if (screenshotCallbackRef.current) {
+          if (globalScreenshotCallback) {
             try {
-              Promise.resolve(screenshotCallbackRef.current())
+              Promise.resolve(globalScreenshotCallback())
                 .catch((error) => {
                   console.error("Screenshot shortcut callback failed:", error);
                 })
@@ -201,8 +214,8 @@ export const useGlobalShortcuts = () => {
 
         // Listen for system audio toggle event
         const unlistenSystemAudio = await listen("toggle-system-audio", () => {
-          if (systemAudioCallbackRef.current) {
-            systemAudioCallbackRef.current();
+          if (globalSystemAudioCallback) {
+            globalSystemAudioCallback();
           }
         });
         globalEventListeners.systemAudio = unlistenSystemAudio;
@@ -212,7 +225,7 @@ export const useGlobalShortcuts = () => {
           "custom-shortcut-triggered",
           (event) => {
             const actionId = event.payload.action;
-            const callback = customShortcutCallbacksRef.current.get(actionId);
+            const callback = globalCustomShortcutCallbacks.get(actionId);
             if (callback) {
               callback();
             } else {

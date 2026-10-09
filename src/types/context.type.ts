@@ -41,19 +41,21 @@ export type IContextType = {
   toggleAutostart: (isEnabled: boolean) => Promise<void>;
   loadData: () => void;
   pluelyApiEnabled: boolean;
-  setPluelyApiEnabled: (enabled: boolean) => void;
+  setPluelyApiEnabled: (enabled: boolean) => Promise<void>;
   hasActiveLicense: boolean;
   setHasActiveLicense: Dispatch<SetStateAction<boolean>>;
   getActiveLicenseStatus: () => Promise<void>;
   selectedAudioDevices: {
-    input: string;
-    output: string;
+    input: { id: string; name: string };
+    output: { id: string; name: string };
   };
   setSelectedAudioDevices: Dispatch<
     SetStateAction<{
-      input: string;
-      output: string;
+      input: { id: string; name: string };
+      output: { id: string; name: string };
     }>
   >;
   setCursorType: (type: CursorType) => void;
+  supportsImages: boolean;
+  setSupportsImages: (value: boolean) => void;
 };

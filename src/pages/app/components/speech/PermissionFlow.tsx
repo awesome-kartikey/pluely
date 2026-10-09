@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
-import { Button, Card } from "@/components";
-import { CheckCircle2Icon, LoaderIcon, ShieldAlertIcon } from "lucide-react";
+import { Button } from "@/components";
+import {
+  CheckCircle2Icon,
+  LoaderIcon,
+  ShieldAlertIcon,
+  ChevronDownIcon,
+} from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
+import { cn } from "@/lib/utils";
 
 interface PermissionFlowProps {
   onPermissionGranted: () => void;
@@ -17,8 +23,8 @@ export const PermissionFlow = ({
   const [permissionState, setPermissionState] =
     useState<PermissionState>("checking");
   const [checkAttempts, setCheckAttempts] = useState(0);
+  const [showManual, setShowManual] = useState(false);
 
-  // Initial permission check
   useEffect(() => {
     checkPermission();
   }, []);
@@ -47,9 +53,8 @@ export const PermissionFlow = ({
       setPermissionState("requesting");
       await invoke("request_system_audio_access");
 
-      // Start polling for permission grant
       let attempts = 0;
-      const maxAttempts = 20; // Poll for up to 20 seconds
+      const maxAttempts = 20;
 
       const pollInterval = setInterval(async () => {
         attempts++;
@@ -78,140 +83,108 @@ export const PermissionFlow = ({
     }
   };
 
-  const renderContent = () => {
-    switch (permissionState) {
-      case "checking":
-        return (
-          <Card className="p-6 bg-blue-50 border-blue-200">
-            <div className="flex items-start gap-3">
-              <LoaderIcon className="w-6 h-6 text-blue-600 animate-spin flex-shrink-0" />
-              <div>
-                <h3 className="font-semibold text-sm text-blue-900 mb-1">
-                  Checking Permissions
-                </h3>
-                <p className="text-xs text-blue-800 leading-relaxed">
-                  Verifying system audio access permissions...
-                </p>
-              </div>
-            </div>
-          </Card>
-        );
-
-      case "granted":
-        return (
-          <Card className="p-6 bg-green-50 border-green-200">
-            <div className="flex items-start gap-3">
-              <CheckCircle2Icon className="w-6 h-6 text-green-600 flex-shrink-0" />
-              <div>
-                <h3 className="font-semibold text-sm text-green-900 mb-1">
-                  Permission Granted!
-                </h3>
-                <p className="text-xs text-green-800 leading-relaxed">
-                  System audio access is enabled. Starting capture...
-                </p>
-              </div>
-            </div>
-          </Card>
-        );
-
-      case "requesting":
-        return (
-          <Card className="p-6 bg-orange-50 border-orange-200">
-            <div className="flex items-start gap-3">
-              <LoaderIcon className="w-6 h-6 text-orange-600 animate-spin flex-shrink-0" />
-              <div className="flex-1">
-                <h3 className="font-semibold text-sm text-orange-900 mb-2">
-                  Waiting for Permission
-                </h3>
-                <p className="text-xs text-orange-800 leading-relaxed mb-3">
-                  System Settings should have opened. Please:
-                </p>
-                <ol className="text-xs text-orange-800 space-y-1 list-decimal list-inside mb-3">
-                  <li>
-                    Go to <strong>Privacy & Security</strong>
-                  </li>
-                  <li>
-                    Select <strong>Screen & System Audio Recording</strong>
-                  </li>
-                  <li>
-                    Find <strong>Pluely</strong> and enable it
-                  </li>
-                  <li className="font-semibold text-orange-900">
-                    Return here - we'll detect it automatically!
-                  </li>
-                </ol>
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-orange-700">
-                    Checking... ({checkAttempts}/20)
-                  </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={checkPermission}
-                    className="text-xs"
-                  >
-                    Check Now
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </Card>
-        );
-
-      case "denied":
-        return (
-          <Card className="p-6 bg-red-50 border-red-200">
-            <div className="flex items-start gap-3">
-              <ShieldAlertIcon className="w-6 h-6 text-red-600 flex-shrink-0" />
-              <div className="flex-1">
-                <h3 className="font-semibold text-sm text-red-900 mb-2">
-                  Permission Required
-                </h3>
-                <p className="text-xs text-red-800 leading-relaxed mb-3">
-                  Pluely needs permission to capture system audio. This is
-                  required for the system audio feature to work.
-                </p>
-
-                <div className="space-y-3">
-                  <Button
-                    onClick={requestPermission}
-                    className="w-full"
-                    size="sm"
-                  >
-                    Grant Permission
-                  </Button>
-
-                  <details className="text-xs text-red-800">
-                    <summary className="cursor-pointer font-medium mb-2">
-                      Manual Setup Instructions
-                    </summary>
-                    <ol className="list-decimal list-inside space-y-1 mt-2 pl-2">
-                      <li>
-                        Open <strong>System Settings</strong>
-                      </li>
-                      <li>
-                        Navigate to <strong>Privacy & Security</strong>
-                      </li>
-                      <li>
-                        Click on{" "}
-                        <strong>Screen & System Audio Recording</strong>
-                      </li>
-                      <li>
-                        Find <strong>Pluely</strong> in the list
-                      </li>
-                      <li>
-                        Toggle the switch to <strong>ON</strong>
-                      </li>
-                      <li>Restart Pluely if needed</li>
-                    </ol>
-                  </details>
-                </div>
-              </div>
-            </div>
-          </Card>
-        );
-    }
+  const stateConfig = {
+    checking: {
+      icon: <LoaderIcon className="w-5 h-5 animate-spin" />,
+      title: "Checking Permissions",
+      description: "Verifying system audio access...",
+      bgColor: "bg-blue-50",
+      borderColor: "border-blue-200",
+      textColor: "text-blue-800",
+      titleColor: "text-blue-900",
+    },
+    granted: {
+      icon: <CheckCircle2Icon className="w-5 h-5" />,
+      title: "Permission Granted",
+      description: "Starting capture...",
+      bgColor: "bg-green-50",
+      borderColor: "border-green-200",
+      textColor: "text-green-800",
+      titleColor: "text-green-900",
+    },
+    requesting: {
+      icon: <LoaderIcon className="w-5 h-5 animate-spin" />,
+      title: "Waiting for Permission",
+      description: `Enable Pluely in System Settings (${checkAttempts}/20)`,
+      bgColor: "bg-orange-50",
+      borderColor: "border-orange-200",
+      textColor: "text-orange-800",
+      titleColor: "text-orange-900",
+    },
+    denied: {
+      icon: <ShieldAlertIcon className="w-5 h-5" />,
+      title: "Permission Required",
+      description: "Grant access to capture system audio",
+      bgColor: "bg-muted/50",
+      borderColor: "border-border",
+      textColor: "text-muted-foreground",
+      titleColor: "text-foreground",
+    },
   };
 
-  return <div className="space-y-4">{renderContent()}</div>;
+  const config = stateConfig[permissionState];
+
+  return (
+    <div
+      className={cn(
+        "rounded-xl border p-4",
+        config.bgColor,
+        config.borderColor
+      )}
+    >
+      <div className="flex items-start gap-3">
+        <div className={cn("flex-shrink-0", config.textColor)}>
+          {config.icon}
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className={cn("font-semibold text-sm mb-0.5", config.titleColor)}>
+            {config.title}
+          </h3>
+          <p className={cn("text-xs", config.textColor)}>{config.description}</p>
+
+          {permissionState === "denied" && (
+            <div className="mt-3 space-y-2">
+              <Button onClick={requestPermission} size="sm" className="w-full">
+                Grant Permission
+              </Button>
+              <button
+                type="button"
+                onClick={() => setShowManual(!showManual)}
+                className="w-full flex items-center justify-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+              >
+                Manual setup
+                <ChevronDownIcon
+                  className={cn(
+                    "w-3 h-3 transition-transform",
+                    showManual && "rotate-180"
+                  )}
+                />
+              </button>
+              {showManual && (
+                <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside pt-2 border-t border-border/50">
+                  <li>Open System Settings</li>
+                  <li>Go to Privacy & Security</li>
+                  <li>Select Screen & System Audio Recording</li>
+                  <li>Enable Pluely</li>
+                </ol>
+              )}
+            </div>
+          )}
+
+          {permissionState === "requesting" && (
+            <div className="mt-3 flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={checkPermission}
+                className="text-xs"
+              >
+                Check Now
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 };

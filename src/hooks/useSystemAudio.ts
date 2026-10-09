@@ -85,8 +85,6 @@ export function useSystemAudio() {
   const [isContinuousMode, setIsContinuousMode] = useState<boolean>(false);
   const [isRecordingInContinuousMode, setIsRecordingInContinuousMode] =
     useState<boolean>(false);
-  const [stream, setStream] = useState<MediaStream | null>(null); // for audio visualizer
-  const streamRef = useRef<MediaStream | null>(null);
 
   const [conversation, setConversation] = useState<ChatConversation>({
     id: "",
@@ -390,14 +388,39 @@ export function useSystemAudio() {
   );
 
   const handleQuickActionClick = async (action: string) => {
-    setLastTranscription(action); // Show the action as if it were a transcription
     setError("");
 
     const effectiveSystemPrompt = useSystemPrompt
       ? systemPrompt || DEFAULT_SYSTEM_PROMPT
       : contextContent || DEFAULT_SYSTEM_PROMPT;
 
-    const previousMessages = conversation.messages.map((msg) => {
+    // Include the most recent transcription in conversation history if it exists
+    let updatedMessages = [...conversation.messages];
+
+    if (lastTranscription && lastTranscription.trim()) {
+      const lastMessage = updatedMessages[updatedMessages.length - 1];
+      // Only add if it's not already the last message
+      if (!lastMessage || lastMessage.content !== lastTranscription) {
+        const timestamp = Date.now();
+        const userMessage = {
+          id: generateMessageId("user", timestamp),
+          role: "user" as const,
+          content: lastTranscription,
+          timestamp,
+        };
+        updatedMessages.push(userMessage);
+
+        // Update conversation state with the latest transcription
+        setConversation((prev) => ({
+          ...prev,
+          messages: [userMessage, ...prev.messages],
+          updatedAt: timestamp,
+          title: prev.title || generateConversationTitle(lastTranscription),
+        }));
+      }
+    }
+
+    const previousMessages = updatedMessages.map((msg) => {
       return { role: msg.role, content: msg.content };
     });
 
@@ -411,8 +434,8 @@ export function useSystemAudio() {
       setError("");
 
       const deviceId =
-        selectedAudioDevices.output !== "default"
-          ? selectedAudioDevices.output
+        selectedAudioDevices.output.id !== "default"
+          ? selectedAudioDevices.output.id
           : null;
 
       // Start a new continuous recording session
@@ -424,7 +447,7 @@ export function useSystemAudio() {
       console.error("Failed to start continuous recording:", err);
       setError(`Failed to start recording: ${err}`);
     }
-  }, [vadConfig, selectedAudioDevices.output]);
+  }, [vadConfig, selectedAudioDevices.output.id]);
 
   // Ignore current recording (stop without transcription)
   const ignoreContinuousRecording = useCallback(async () => {
@@ -566,8 +589,8 @@ export function useSystemAudio() {
       await invoke<string>("stop_system_audio_capture");
 
       const deviceId =
-        selectedAudioDevices.output !== "default"
-          ? selectedAudioDevices.output
+        selectedAudioDevices.output.id !== "default"
+          ? selectedAudioDevices.output.id
           : null;
 
       // Start capture with VAD config
@@ -580,7 +603,7 @@ export function useSystemAudio() {
       setError(errorMessage);
       setIsPopoverOpen(true);
     }
-  }, [vadConfig, selectedAudioDevices.output]);
+  }, [vadConfig, selectedAudioDevices.output.id]);
 
   const stopCapture = useCallback(async () => {
     try {
@@ -685,40 +708,10 @@ export function useSystemAudio() {
     });
   }, [startCapture, stopCapture]);
 
-  // Manage microphone stream for audio visualizer
-  useEffect(() => {
-    const getStream = async () => {
-      if (capturing) {
-        try {
-          const mediaStream = await navigator.mediaDevices.getUserMedia({
-            audio: true,
-          });
-          streamRef.current = mediaStream;
-          setStream(mediaStream);
-        } catch (error) {
-          console.error("Failed to get microphone stream:", error);
-        }
-      } else {
-        // Stop all tracks when not capturing
-        if (streamRef.current) {
-          streamRef.current.getTracks().forEach((track) => track.stop());
-          streamRef.current = null;
-        }
-        setStream(null);
-      }
-    };
-
-    getStream();
-  }, [capturing]);
-
   useEffect(() => {
     return () => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
-      }
-      // Clean up stream on unmount
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
       }
       invoke("stop_system_audio_capture").catch(() => {});
     };
@@ -931,6 +924,5 @@ export function useSystemAudio() {
     ignoreContinuousRecording,
     // Scroll area ref for keyboard navigation
     scrollAreaRef,
-    stream,
   };
 }

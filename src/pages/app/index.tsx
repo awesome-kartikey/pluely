@@ -46,10 +46,7 @@ const App = () => {
           {systemAudio?.capturing ? (
             <div className="flex flex-row items-center gap-2 justify-between w-full">
               <div className="flex flex-1 items-center gap-2">
-                <AudioVisualizer
-                  stream={systemAudio?.stream}
-                  isRecording={systemAudio?.capturing}
-                />
+                <AudioVisualizer isRecording={systemAudio?.capturing} />
               </div>
               <div className="flex !w-fit items-center gap-2">
                 <StatusIndicator

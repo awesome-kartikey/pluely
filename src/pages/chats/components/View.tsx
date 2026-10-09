@@ -36,7 +36,7 @@ import {
 
 const View = () => {
   const { conversationId } = useParams();
-  const { hasActiveLicense } = useApp();
+  const { hasActiveLicense, supportsImages } = useApp();
   const navigate = useNavigate();
   const [messages, setMessages] = useState<ChatConversation | null>(null);
 
@@ -191,7 +191,7 @@ const View = () => {
                     }`}
                   >
                     <Card
-                      className={`px-4 text-xs lg:text-sm py-0 transition-all select-none shadow-none ${
+                      className={`p-3 text-xs lg:text-sm transition-all shadow-none ${
                         isUser
                           ? "!bg-primary text-primary-foreground !border-primary rounded-tr-sm"
                           : "!bg-muted/50 dark:!bg-muted/30 rounded-tl-sm"
@@ -270,7 +270,7 @@ const View = () => {
                     isLoading={completion.isLoading}
                     isFilesPopoverOpen={completion.isFilesPopoverOpen}
                     setIsFilesPopoverOpen={completion.setIsFilesPopoverOpen}
-                    disabled={!hasActiveLicense}
+                    disabled={!hasActiveLicense || !supportsImages}
                   />
                   <ChatAudio
                     micOpen={completion.micOpen}
@@ -285,7 +285,7 @@ const View = () => {
                     isLoading={completion.isLoading}
                     captureScreenshot={completion.captureScreenshot}
                     isScreenshotLoading={completion.isScreenshotLoading}
-                    disabled={!hasActiveLicense}
+                    disabled={!hasActiveLicense || !supportsImages}
                   />
                 </div>
 

@@ -1,8 +1,7 @@
 import { Switch, Label, Header } from "@/components";
 import { useApp } from "@/contexts";
-import { updateAutoScroll } from "@/lib/storage/response-settings.storage";
 import { useState, useEffect } from "react";
-import { getResponseSettings } from "@/lib";
+import { getResponseSettings, updateAutoScroll } from "@/lib";
 
 export const AutoScrollToggle = () => {
   const { hasActiveLicense } = useApp();
