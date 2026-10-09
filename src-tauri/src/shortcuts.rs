@@ -109,6 +109,17 @@ pub fn handle_shortcut_action<R: Runtime>(app: &AppHandle<R>, action_id: &str) {
         "audio_recording" => handle_audio_shortcut(app),
         "screenshot" => handle_screenshot_shortcut(app),
         "system_audio" => handle_system_audio_shortcut(app),
+        "toggle_always_on_top" => handle_toggle_always_on_top(app),
+        "toggle_system_prompt" => handle_toggle_prompt_shortcut(app),
+        "exit_app" => app.exit(0),
+        "restart_app" => {
+            eprintln!("Restarting application in 5 seconds...");
+            let app_handle_clone = app.clone();
+            tauri::async_runtime::spawn(async move {
+                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                app_handle_clone.restart();
+            });
+        },
         custom_action => {
             // Emit custom action event for frontend to handle
             if let Some(window) = app.get_webview_window("main") {
@@ -300,6 +311,29 @@ fn handle_system_audio_shortcut<R: Runtime>(app: &AppHandle<R>) {
         // Emit event to toggle system audio capture - frontend will determine current state
         if let Err(e) = window.emit("toggle-system-audio", json!({})) {
             eprintln!("Failed to emit system audio event: {}", e);
+        }
+    }
+}
+
+fn handle_toggle_always_on_top<R: Runtime>(app: &AppHandle<R>) {
+    if let Some(window) = app.get_webview_window("main") {
+        match window.is_always_on_top() {
+            Ok(is_on_top) => {
+                if let Err(e) = window.set_always_on_top(!is_on_top) {
+                    eprintln!("Failed to toggle always on top: {}", e);
+                }
+            }
+            Err(e) => {
+                eprintln!("Failed to get always_on_top state: {}", e);
+            }
+        }
+    }
+}
+
+fn handle_toggle_prompt_shortcut<R: Runtime>(app: &AppHandle<R>) {
+    if let Some(window) = app.get_webview_window("main") {
+        if let Err(e) = window.emit("toggle-next-prompt", json!({})) {
+            eprintln!("Failed to emit toggle-next-prompt event: {}", e);
         }
     }
 }

@@ -71,4 +71,44 @@ export const DEFAULT_SHORTCUT_ACTIONS: ShortcutAction[] = [
       linux: "ctrl+shift+s",
     },
   },
+  {
+    id: "toggle_always_on_top",
+    name: "Toggle Always on Top",
+    description: "Toggle whether the window stays above all others",
+    defaultKey: {
+      macos: "cmd+alt+t",
+      windows: "ctrl+alt+t",
+      linux: "ctrl+alt+t",
+    },
+  },
+  {
+    id: "toggle_system_prompt",
+    name: "Toggle System Prompt",
+    description: "Cycle through your saved system prompts",
+    defaultKey: {
+      macos: "cmd+shift+y",
+      windows: "ctrl+shift+y",
+      linux: "ctrl+shift+y",
+    },
+  },
+  {
+    id: "exit_app",
+    name: "Quit App",
+    description: "Quit the application instantly",
+    defaultKey: {
+      macos: "cmd+shift+q",
+      windows: "ctrl+shift+q",
+      linux: "ctrl+shift+q",
+    },
+  },
+  {
+    id: "restart_app",
+    name: "Restart App",
+    description: "Restart the application after 5 seconds",
+    defaultKey: {
+      macos: "cmd+shift+r",
+      windows: "ctrl+shift+r",
+      linux: "ctrl+shift+r",
+    },
+  },
 ];
