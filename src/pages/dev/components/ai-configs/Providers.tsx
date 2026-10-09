@@ -1,8 +1,9 @@
-import { Button, Header, Input, Selection, TextInput } from "@/components";
+import { Button, Header, Input, Selection, TextInput, Card, Badge } from "@/components";
 import { UseSettingsReturn } from "@/types";
 import curl2Json, { ResultJSON } from "@bany/curl-to-json";
-import { KeyIcon, TrashIcon } from "lucide-react";
+import { KeyIcon, TrashIcon, ShieldCheckIcon } from "lucide-react";
 import { useEffect, useState } from "react";
+import { getCandidatePoolStatuses } from "@/lib";
 
 export const Providers = ({
   allAiProviders,
@@ -53,7 +54,7 @@ export const Providers = ({
             return {
               label: provider?.isCustom
                 ? json?.url || "Custom Provider"
-                : provider?.id || "Custom Provider",
+                : provider?.name || provider?.id || "Custom Provider",
               value: provider?.id || "Custom Provider",
               isCustom: provider?.isCustom,
             };
@@ -68,7 +69,57 @@ export const Providers = ({
         />
       </div>
 
-      {localSelectedProvider ? (
+      {selectedAIProvider?.provider === "smart-auto" ? (
+        <Card className="p-4 space-y-3 bg-muted/20 border-primary/20">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ShieldCheckIcon className="h-5 w-5 text-emerald-500" />
+              <h4 className="text-sm font-semibold">Zero-Limit Free-Tier Shield Active</h4>
+            </div>
+            <Badge variant="outline" className="text-xs bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
+              Auto-Failover Enabled
+            </Badge>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Inbuilt Gemini, Groq, and OpenRouter API keys are bundled. If any model reaches rate limits (HTTP 429 / Quota Exceeded), Pluely silently rotates to the next model in real-time without displaying errors.
+          </p>
+          <div className="space-y-1.5 pt-1">
+            <span className="text-xs font-medium text-foreground/80">Active Fallback Priority Ladder:</span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+              {getCandidatePoolStatuses().map((cand, idx) => (
+                <div
+                  key={cand.id}
+                  className="flex items-center justify-between p-2 rounded-lg border bg-background/50 text-xs"
+                >
+                  <div className="flex items-center gap-2 overflow-hidden">
+                    <span className="text-[10px] font-mono text-muted-foreground w-4">
+                      #{idx + 1}
+                    </span>
+                    <span className="truncate font-medium">{cand.name}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {cand.supportsVision && (
+                      <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4">
+                        Vision
+                      </Badge>
+                    )}
+                    <Badge
+                      variant="outline"
+                      className={`text-[10px] px-1.5 py-0 h-4 uppercase ${
+                        cand.isCooling
+                          ? "border-amber-500 text-amber-500"
+                          : "border-emerald-500/40 text-emerald-600"
+                      }`}
+                    >
+                      {cand.isCooling ? `${cand.remainingSec}s wait` : "Ready"}
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Card>
+      ) : localSelectedProvider ? (
         <Header
           title={`Method: ${
             localSelectedProvider?.method || "Invalid"

@@ -1,5 +1,16 @@
 export const AI_PROVIDERS = [
   {
+    id: "smart-auto",
+    name: "Smart Auto (Gemini + Groq + OpenRouter)",
+    curl: `curl https://generativelanguage.googleapis.com/v1beta/openai/chat/completions \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "messages": [{"role": "system", "content": "{{SYSTEM_PROMPT}}"}, {"role": "user", "content": [{"type": "text", "text": "{{TEXT}}"}, {"type": "image_url", "image_url": {"url": "data:image/png;base64,{{IMAGE}}"}}]}]
+  }'`,
+    responseContentPath: "choices[0].message.content",
+    streaming: true,
+  },
+  {
     id: "openai",
     curl: `curl https://api.openai.com/v1/chat/completions \\
   -H "Content-Type: application/json" \\

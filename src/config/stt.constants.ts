@@ -1,4 +1,18 @@
+import { INBUILT_KEYS } from "./inbuilt-ai.config";
+
 export const SPEECH_TO_TEXT_PROVIDERS = [
+  {
+    id: "groq",
+    name: "Groq Whisper (Inbuilt Turbo)",
+    curl: `curl -X POST https://api.groq.com/openai/v1/audio/transcriptions \\
+      -H "Authorization: bearer ${INBUILT_KEYS.GROQ}" \\
+      -F "file={{AUDIO}}" \\
+      -F model=whisper-large-v3-turbo \\
+      -F temperature=0 \\
+      -F response_format=json`,
+    responseContentPath: "text",
+    streaming: false,
+  },
   {
     id: "openai-whisper",
     name: "OpenAI Whisper",
@@ -6,19 +20,6 @@ export const SPEECH_TO_TEXT_PROVIDERS = [
       -H "Authorization: Bearer {{API_KEY}}" \\
       -F "file={{AUDIO}}" \\
       -F "model={{MODEL}}"`,
-    responseContentPath: "text",
-    streaming: false,
-  },
-  {
-    id: "groq",
-    name: "Groq Whisper",
-    curl: `curl -X POST https://api.groq.com/openai/v1/audio/transcriptions \\
-      -H "Authorization: bearer {{API_KEY}}" \\
-      -F "file={{AUDIO}}" \\
-      -F model={{MODEL}} \\
-      -F temperature=0 \\
-      -F response_format=text \\
-      -F language=en`,
     responseContentPath: "text",
     streaming: false,
   },

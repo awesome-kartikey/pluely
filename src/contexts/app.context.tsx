@@ -3,6 +3,7 @@ import {
   DEFAULT_SYSTEM_PROMPT,
   SPEECH_TO_TEXT_PROVIDERS,
   STORAGE_KEYS,
+  INBUILT_KEYS,
 } from "@/config";
 import { getPlatform, safeLocalStorage, trackAppStart } from "@/lib";
 import { getShortcutsConfig } from "@/lib/storage";
@@ -85,6 +86,19 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       safeLocalStorage.getItem(STORAGE_KEYS.SELECTED_AUDIO_OUTPUT_DEVICE) || "",
   });
 
+  const DEFAULT_AI_PROVIDER = {
+    provider: "smart-auto",
+    variables: {},
+  };
+
+  const DEFAULT_STT_PROVIDER = {
+    provider: "groq",
+    variables: {
+      api_key: INBUILT_KEYS.GROQ,
+      model: "whisper-large-v3-turbo",
+    },
+  };
+
   // AI Providers
   const [customAiProviders, setCustomAiProviders] = useState<TYPE_PROVIDER[]>(
     []
@@ -92,10 +106,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [selectedAIProvider, setSelectedAIProvider] = useState<{
     provider: string;
     variables: Record<string, string>;
-  }>({
-    provider: "",
-    variables: {},
-  });
+  }>(DEFAULT_AI_PROVIDER);
 
   // STT Providers
   const [customSttProviders, setCustomSttProviders] = useState<TYPE_PROVIDER[]>(
@@ -104,10 +115,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [selectedSttProvider, setSelectedSttProvider] = useState<{
     provider: string;
     variables: Record<string, string>;
-  }>({
-    provider: "",
-    variables: {},
-  });
+  }>(DEFAULT_STT_PROVIDER);
 
   const [screenshotConfiguration, setScreenshotConfiguration] =
     useState<ScreenshotConfig>({
@@ -216,7 +224,18 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       STORAGE_KEYS.SELECTED_AI_PROVIDER
     );
     if (savedSelectedAi) {
-      setSelectedAIProvider(JSON.parse(savedSelectedAi));
+      try {
+        const parsed = JSON.parse(savedSelectedAi);
+        if (parsed?.provider) {
+          setSelectedAIProvider(parsed);
+        } else {
+          setSelectedAIProvider(DEFAULT_AI_PROVIDER);
+        }
+      } catch {
+        setSelectedAIProvider(DEFAULT_AI_PROVIDER);
+      }
+    } else {
+      setSelectedAIProvider(DEFAULT_AI_PROVIDER);
     }
 
     // Load selected STT provider
@@ -224,7 +243,18 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       STORAGE_KEYS.SELECTED_STT_PROVIDER
     );
     if (savedSelectedStt) {
-      setSelectedSttProvider(JSON.parse(savedSelectedStt));
+      try {
+        const parsed = JSON.parse(savedSelectedStt);
+        if (parsed?.provider) {
+          setSelectedSttProvider(parsed);
+        } else {
+          setSelectedSttProvider(DEFAULT_STT_PROVIDER);
+        }
+      } catch {
+        setSelectedSttProvider(DEFAULT_STT_PROVIDER);
+      }
+    } else {
+      setSelectedSttProvider(DEFAULT_STT_PROVIDER);
     }
 
     // Load customizable state

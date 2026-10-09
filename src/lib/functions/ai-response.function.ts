@@ -13,6 +13,7 @@ import curl2Json from "@bany/curl-to-json";
 import { shouldUsePluelyAPI } from "./pluely.api";
 import { CHUNK_POLL_INTERVAL_MS } from "../chat-constants";
 import { getResponseSettings, RESPONSE_LENGTHS, LANGUAGES } from "@/lib";
+import { executeSmartAIResponse, isRateLimitOrQuotaError } from "./smart-ai-engine";
 
 function buildEnhancedSystemPrompt(baseSystemPrompt?: string): string {
   const responseSettings = getResponseSettings();
@@ -199,6 +200,23 @@ export async function* fetchAIResponse(params: {
       });
       return;
     }
+
+    // Use Smart AI Engine if selected or if no custom provider is configured
+    if (
+      selectedProvider?.provider === "smart-auto" ||
+      provider?.id === "smart-auto" ||
+      !provider
+    ) {
+      yield* executeSmartAIResponse({
+        userMessage,
+        systemPrompt: enhancedSystemPrompt,
+        imagesBase64,
+        history,
+        signal,
+      });
+      return;
+    }
+
     if (!provider) {
       throw new Error(`Provider not provided`);
     }
@@ -316,6 +334,21 @@ export async function* fetchAIResponse(params: {
       try {
         errorText = await response.text();
       } catch {}
+
+      if (isRateLimitOrQuotaError(response.status, errorText)) {
+        console.warn(
+          `[SmartAI] Provider ${provider?.id} hit limit (${response.status}). Auto-falling back to Smart AI Engine...`
+        );
+        yield* executeSmartAIResponse({
+          userMessage,
+          systemPrompt: enhancedSystemPrompt,
+          imagesBase64,
+          history,
+          signal,
+        });
+        return;
+      }
+
       yield `API request failed: ${response.status} ${response.statusText}${
         errorText ? ` - ${errorText}` : ""
       }`;

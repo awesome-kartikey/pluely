@@ -9,6 +9,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { TYPE_PROVIDER } from "@/types";
 import curl2Json from "@bany/curl-to-json";
 import { shouldUsePluelyAPI } from "./pluely.api";
+import { executeSmartSTT } from "./smart-ai-engine";
 
 // Pluely STT function
 async function fetchPluelySTT(audio: File | Blob): Promise<string> {
@@ -60,9 +61,23 @@ export async function fetchSTT(params: STTParams): Promise<string> {
       return await fetchPluelySTT(audio);
     }
 
+    if (!audio) throw new Error("Audio file is required");
+
+    // Route to smart Groq STT if groq is selected, or as default fallback
+    if (
+      selectedProvider?.provider === "groq" ||
+      provider?.id === "groq" ||
+      !provider
+    ) {
+      try {
+        return await executeSmartSTT(audio);
+      } catch (sttErr: any) {
+        console.warn("[STT] executeSmartSTT error, falling back to curl parsing:", sttErr);
+      }
+    }
+
     if (!provider) throw new Error("Provider not provided");
     if (!selectedProvider) throw new Error("Selected provider not provided");
-    if (!audio) throw new Error("Audio file is required");
 
     let curlJson: any;
     try {
@@ -204,6 +219,13 @@ export async function fetchSTT(params: STTParams): Promise<string> {
       try {
         errText = await response.text();
       } catch {}
+
+      // Automatically retry with Smart Groq STT before throwing
+      try {
+        console.warn(`[STT] Provider failed (${response.status}). Retrying with Smart Groq STT...`);
+        return await executeSmartSTT(audio);
+      } catch {}
+
       let errMsg: string;
       try {
         const errObj = JSON.parse(errText);
